@@ -37,6 +37,7 @@ Resources:
       VpcId: !Ref VPC
       CidrBlock: !Select [0, !Ref PublicSubnetCIDRs]
       AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Sub ${Environment}-PUB-NET1
@@ -47,6 +48,7 @@ Resources:
       VpcId: !Ref VPC
       CidrBlock: !Select [1, !Ref PublicSubnetCIDRs]
       AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Sub ${Environment}-PUB-NET2

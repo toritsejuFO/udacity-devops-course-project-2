@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "UdacityProject2"
+  },
+  {
+    "ParameterKey": "AmiId",
+    "ParameterValue": "ami-0729e439b6769d6ab"
+  },
+  {
+    "ParameterKey": "JumpboxKeyPair",
+    "ParameterValue": "jumpbox_kp"
+  }
+]

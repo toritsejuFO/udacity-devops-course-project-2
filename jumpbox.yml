@@ -1,0 +1,30 @@
+Parameters:
+  Environment:
+    Type: String
+  AmiId:
+    Type: String
+  JumpboxKeyPair:
+    Type: String
+
+Resources:
+
+  Jumpbox:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: t2.micro
+      KeyName: !Ref JumpboxKeyPair
+      BlockDeviceMappings:
+      - DeviceName: /dev/sdh
+        Ebs:
+          VolumeSize: 8
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: true
+        DeviceIndex: 0
+        GroupSet:
+        - Fn::ImportValue: !Sub ${Environment}-JumpboxSecGroup-ID
+        SubnetId:
+          Fn::ImportValue: !Sub ${Environment}-PUB-NET1-ID
+      Tags:
+      - Key: Name
+        Value: jumpbox
