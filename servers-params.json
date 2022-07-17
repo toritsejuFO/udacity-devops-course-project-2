@@ -6,13 +6,5 @@
   {
     "ParameterKey": "AmiId",
     "ParameterValue": "ami-0729e439b6769d6ab"
-  },
-  {
-    "ParameterKey": "PrivateServerKeyPair",
-    "ParameterValue": "course2_kp"
-  },
-  {
-    "ParameterKey": "JumpboxSecGroupIngressCIDR",
-    "ParameterValue": "0.0.0.0/0"
   }
 ]

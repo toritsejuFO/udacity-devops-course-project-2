@@ -1,13 +1,23 @@
+Description: >
+  My implementation of Project 2 Cloud Devops Course.
+  PS: Everything related to the jumpbox is commented,
+  this is to allow for quickly debugging, as adding and removing
+  the content wasn't optimal.
+
 Parameters:
   Environment:
     Type: String
   AmiId:
     Type: String
+
+##### JUMPBOX-COMMENT::START #####
 # Uncomment the below in order to use with jumpbox, used in "ServerLaunchConfig" Resource
-  PrivateServerKeyPair:
-    Type: String
-  JumpboxSecGroupIngressCIDR:
-    Type: String
+# Ensure to add parameters to the server-params json file before updating
+##### JUMPBOX-COMMENT::END #####
+  # PrivateServerKeyPair:
+  #   Type: String
+  # JumpboxSecGroupIngressCIDR:
+  #   Type: String
 
 
 Resources:
@@ -23,10 +33,13 @@ Resources:
         FromPort: 80
         ToPort: 80
         CidrIp: 0.0.0.0/0
-      - IpProtocol: tcp
-        FromPort: 22
-        ToPort: 22
-        CidrIp: 11.0.0.0/16
+##### JUMPBOX-COMMENT::START #####
+# Uncomment the below to use with jumpbox
+##### JUMPBOX-COMMENT::END #####
+      # - IpProtocol: tcp
+      #   FromPort: 22
+      #   ToPort: 22
+      #   CidrIp: 11.0.0.0/16 # Allow access only from machines within VPC CIDR
       SecurityGroupEgress:
       - IpProtocol: tcp
         FromPort: 80
@@ -44,7 +57,10 @@ Resources:
       ImageId: !Ref AmiId
       InstanceType: t3.medium
       SecurityGroups: [!Ref ServerSecGroup]
-      KeyName: !Ref PrivateServerKeyPair # Kept should there be need for debugging using jumpbox, uncomment to use
+##### JUMPBOX-COMMENT::START #####
+# Uncomment to use with jumpbox, for debugging purposes
+##### JUMPBOX-COMMENT::END #####
+      # KeyName: !Ref PrivateServerKeyPair
       BlockDeviceMappings:
       - DeviceName: /dev/sdh
         Ebs:
@@ -138,31 +154,30 @@ Resources:
       Port: 80
       Protocol: HTTP
 
-# Jumpbox security group, kept here in order to export the id for use in the jumpbox template
-  JumpboxSecGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId:
-        Fn::ImportValue: !Sub ${Environment}-VPC-ID
-      GroupDescription: Security group for jumpbox
-      SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 22
-        ToPort: 22
-        CidrIp: !Ref JumpboxSecGroupIngressCIDR
-      SecurityGroupEgress:
-      - IpProtocol: tcp
-        FromPort: 0
-        ToPort: 65535
-        CidrIp: 0.0.0.0/0
-      Tags:
-      - Key: Name
-        Value: jumpbox-SecGroup
+##### JUMPBOX-COMMENT::START #####
+# Jumpbox security group, kept here in order to export the ID for use in the jumpbox template
+# Uncomment and run update in order to use with jumpbox template/stack
+##### JUMPBOX-COMMENT::END #####
 
-  # ServerInstanceProfile:
-  #   Type: AWS::IAM:InstanceProfile
+  # JumpboxSecGroup:
+  #   Type: AWS::EC2::SecurityGroup
   #   Properties:
-  #     Roles: [Role]
+  #     VpcId:
+  #       Fn::ImportValue: !Sub ${Environment}-VPC-ID
+  #     GroupDescription: Security group for jumpbox
+  #     SecurityGroupIngress:
+  #     - IpProtocol: tcp
+  #       FromPort: 22
+  #       ToPort: 22
+  #       CidrIp: !Ref JumpboxSecGroupIngressCIDR
+  #     SecurityGroupEgress:
+  #     - IpProtocol: tcp
+  #       FromPort: 0
+  #       ToPort: 65535
+  #       CidrIp: 0.0.0.0/0
+  #     Tags:
+  #     - Key: Name
+  #       Value: jumpbox-SecGroup
 
 
 Outputs:
@@ -170,7 +185,11 @@ Outputs:
     Value: !Join ['://', ['http', !GetAtt ALB.DNSName]]
     Export:
       Name: ALB-DNSName
-  JumpboxSecGroup:
-    Value: !Ref JumpboxSecGroup
-    Export:
-      Name: !Sub ${Environment}-JumpboxSecGroup-ID
+
+##### JUMPBOX-COMMENT::START #####
+# Uncomment to use with jumpbox
+##### JUMPBOX-COMMENT::END #####
+  # JumpboxSecGroup:
+  #   Value: !Ref JumpboxSecGroup
+  #   Export:
+  #     Name: !Sub ${Environment}-JumpboxSecGroup-ID
