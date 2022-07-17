@@ -1,0 +1,176 @@
+Parameters:
+  Environment:
+    Type: String
+  AmiId:
+    Type: String
+# Uncomment the below in order to use with jumpbox, used in "ServerLaunchConfig" Resource
+  PrivateServerKeyPair:
+    Type: String
+  JumpboxSecGroupIngressCIDR:
+    Type: String
+
+
+Resources:
+# Server-related config (security group, launch config and auto scaling group)
+  ServerSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub ${Environment}-VPC-ID
+      GroupDescription: Security group for servers in autoscaling group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 11.0.0.0/16
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
+
+
+  ServerLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: t3.medium
+      SecurityGroups: [!Ref ServerSecGroup]
+      KeyName: !Ref PrivateServerKeyPair # Kept should there be need for debugging using jumpbox, uncomment to use
+      BlockDeviceMappings:
+      - DeviceName: /dev/sdh
+        Ebs:
+          VolumeSize: 10
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt-get update -y
+          sudo apt-get install apache2 -y
+          sudo systemctl start apache2.service
+          sudo systemctl enable apache2.service
+          cd /var/www/html
+          echo "It works! Udagram, Udacity!" > index.html
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: ServerAutoScalingGroup
+      MinSize: 4
+      MaxSize: 8
+      HealthCheckGracePeriod: 60
+      HealthCheckType: ELB
+      LaunchConfigurationName: !Ref ServerLaunchConfig
+      VPCZoneIdentifier:
+      - Fn::ImportValue: !Sub ${Environment}-PRI-NET-IDs
+      TargetGroupARNs: [!Ref SeverTargetGroup]
+
+# Load balancer related config
+  ALBSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub ${Environment}-VPC-ID
+      GroupDescription: Security group for Load balancer
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${Environment}-ALB
+      SecurityGroups: [!Ref ALBSecGroup]
+      Subnets:
+      - Fn::ImportValue: !Sub ${Environment}-PUB-NET1-ID
+      - Fn::ImportValue: !Sub ${Environment}-PUB-NET2-ID
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      LoadBalancerArn: !Ref ALB
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref SeverTargetGroup
+
+  ALBListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Priority: 1
+      ListenerArn: !GetAtt ALBListener.ListenerArn
+      Actions:
+      - Type: forward
+        TargetGroupArn: !Ref SeverTargetGroup
+        Order: 1
+      Conditions:
+      - Field: path-pattern
+        PathPatternConfig:
+          Values: [/]
+
+  SeverTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub ${Environment}-VPC-ID
+      HealthCheckIntervalSeconds: 15
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 5
+      Port: 80
+      Protocol: HTTP
+
+# Jumpbox security group, kept here in order to export the id for use in the jumpbox template
+  JumpboxSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub ${Environment}-VPC-ID
+      GroupDescription: Security group for jumpbox
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref JumpboxSecGroupIngressCIDR
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: Name
+        Value: jumpbox-SecGroup
+
+  # ServerInstanceProfile:
+  #   Type: AWS::IAM:InstanceProfile
+  #   Properties:
+  #     Roles: [Role]
+
+
+Outputs:
+  ALB:
+    Value: !Join ['://', ['http', !GetAtt ALB.DNSName]]
+    Export:
+      Name: ALB-DNSName
+  JumpboxSecGroup:
+    Value: !Ref JumpboxSecGroup
+    Export:
+      Name: !Sub ${Environment}-JumpboxSecGroup-ID
